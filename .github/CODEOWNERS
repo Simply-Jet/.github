@@ -1,0 +1,10 @@
+# Org defaults CODEOWNERS
+# This repository hosts org-wide community health files
+*                                       @Simply-Jet/admins
+
+profile/                                @Simply-Jet/admins
+SECURITY.md                             @Simply-Jet/security @Simply-Jet/admins
+CONTRIBUTING.md                         @Simply-Jet/admins
+.github/PULL_REQUEST_TEMPLATE.md        @Simply-Jet/admins
+.github/ISSUE_TEMPLATE/                 @Simply-Jet/admins
+.github/CODEOWNERS                      @Simply-Jet/admins
