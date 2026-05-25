@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Simply-Jet/.github/blob/main/SECURITY.md
+    about: Report security issues privately, not as public GitHub issues. See our security policy.
+  - name: General company contact
+    url: https://www.simply-jet.ch/
+    about: For non-engineering enquiries, visit our website.
+  - name: Engineering questions
+    url: mailto:it@simply-jet.ch
+    about: For engineering and IT questions, email us directly.
