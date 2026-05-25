@@ -1,0 +1,62 @@
+name: Feature request
+description: Propose a new feature or improvement
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Please describe the problem first; this helps us evaluate whether the proposed approach is the right one.
+
+  - type: input
+    id: repository
+    attributes:
+      label: Affected repository
+      description: Which Simply Jet repository would this feature be added to?
+      placeholder: e.g., simplyjet-backend
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What user pain, business need, or technical limitation does this address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How you think this should work. Include UX, API shape, or technical approach as relevant.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you considered and why this one is preferred.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Mockups, related links, prior discussion, customer requests, screenshots, etc.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Suggested priority
+      description: How urgent is this from your perspective?
+      options:
+        - Nice to have
+        - Should have
+        - Must have for next release
+    validations:
+      required: false
