@@ -1,0 +1,81 @@
+name: Bug report
+description: Report a bug or unexpected behaviour in a Simply Jet repository
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in the fields below so we can reproduce and prioritise it.
+
+        For **security vulnerabilities**, do not open a public issue. See [SECURITY.md](https://github.com/Simply-Jet/.github/blob/main/SECURITY.md) instead.
+
+  - type: input
+    id: repository
+    attributes:
+      label: Affected repository
+      description: Which Simply Jet repository does this affect?
+      placeholder: e.g., simplyjet-backend
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What is happening
+      description: A clear description of what you observed, and what you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps so we can reliably trigger the issue.
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did this happen (production, staging, local) and any relevant browser, device, or version details.
+      placeholder: e.g., production, Safari 17.5 on macOS 14, app version 2.3.1
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, screenshots, or stack traces
+      description: Paste relevant log output or attach screenshots. Redact any sensitive data first.
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How impactful is this bug?
+      options:
+        - Low (minor inconvenience, workaround exists)
+        - Medium (affects feature but not blocking)
+        - High (major feature broken or data loss risk)
+        - Critical (production outage or security impact)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have searched existing issues to confirm this is not a duplicate
+          required: true
+        - label: I have removed any sensitive information from the report above
+          required: true
