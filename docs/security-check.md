@@ -5,7 +5,7 @@
 - gitleaks: secrets in the full git history (pinned binary with checksum, no licence needed)
 - dependency-scan: OSV-Scanner on all lockfiles
 - image-scan: Trivy, only when `scan-image` is set
-- semgrep: code patterns (`--config=auto`)
+- semgrep: code patterns (`--config=p/default`, since `auto` requires metrics)
 - `security-check`: the aggregate job. Make this the required status check.
 
 No secrets are used, so it works on fork pull requests. Do not add private values to this repository, it is public.

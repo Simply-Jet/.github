@@ -125,7 +125,7 @@ jobs:
           SEV_FLAGS: ${{ steps.sev.outputs.flags }}
         run: |
           # shellcheck disable=SC2086
-          semgrep scan --config=auto --error --metrics=off $SEV_FLAGS
+          semgrep scan --config=p/default --error --metrics=off $SEV_FLAGS
 
   security-check:
     name: security-check
