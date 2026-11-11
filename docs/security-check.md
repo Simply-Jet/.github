@@ -60,7 +60,7 @@ Each scanner was tested by calling this workflow from a throwaway branch of this
 
 | Run | Workflow commit | Result |
 | --- | --- | --- |
-| [42966514495](https://github.com/Simply-Jet/.github/actions/runs/42966514495), [42966736224](https://github.com/Simply-Jet/.github/actions/runs/42966736224) | earlier head | gitleaks, dependency-scan and semgrep in both modes, no `scan-image` |
+| [42966514495](https://github.com/Simply-Jet/.github/actions/runs/42966514495), [42966736224](https://github.com/Simply-Jet/.github/actions/runs/42966736224) | earlier head of this PR | Planted secret, vulnerable lockfile and code finding, no `scan-image`. Report-only: all jobs and `security-check` green. Enforce: gitleaks, dependency-scan, semgrep and `security-check` red. |
 | [43011149807](https://github.com/Simply-Jet/.github/actions/runs/43011149807) | `eb3e1b95` | image-scan failed in both modes: template error on `continue-on-error` of the trivy-action step |
 | [43011451242](https://github.com/Simply-Jet/.github/actions/runs/43011451242) | `e61e6078` | image-scan failed in both modes: trivy-action stops when `.trivyignore` is missing, and report-only was not honoured |
-| [43012131901](https://github.com/Simply-Jet/.github/actions/runs/43012131901) | `c2634efa` | `scan-image: alpine:3.18.0`, no `.trivyignore`. Trivy found `Total: 9 (HIGH: 6, CRITICAL: 3)` in both modes. Report-only: every job and `security-check` green. Enforce: image-scan and `security-check` red, the others green. |
+| [43012131901](https://github.com/Simply-Jet/.github/actions/runs/43012131901) | `c2634efa` | `scan-image: alpine:3.18.0`, no `.trivyignore`. Trivy found `Total: 9 (HIGH: 6, CRITICAL: 3)` in both modes. Report-only: every job and `security-check` green. Enforce: image-scan and `security-check` red; gitleaks, dependency-scan and semgrep green (no findings in this repository). |
