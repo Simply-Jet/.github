@@ -28,6 +28,7 @@ jobs:
   gitleaks:
     name: gitleaks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -47,6 +48,7 @@ jobs:
   dependencies:
     name: dependency-scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -58,14 +60,16 @@ jobs:
           chmod +x osv-scanner
       # Scans lockfiles recursively. Accepted findings go in osv-scanner.toml with a reason.
       # OSV has no severity filter, so any known vulnerability in a lockfile fails this job.
+      # --allow-no-lockfiles: a repo without a supported lockfile passes (osv-scanner exits 128 otherwise).
       - name: Scan lockfiles
         continue-on-error: ${{ inputs.report-only }}
-        run: ./osv-scanner scan source --recursive .
+        run: ./osv-scanner scan source --recursive --allow-no-lockfiles .
 
   trivy:
     name: image-scan
     if: ${{ inputs.scan-image != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -98,6 +102,7 @@ jobs:
   semgrep:
     name: semgrep
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -132,6 +137,7 @@ jobs:
     if: ${{ always() }}
     needs: [gitleaks, dependencies, trivy, semgrep]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Aggregate results
         env:
@@ -139,10 +145,11 @@ jobs:
           REPORT_ONLY: ${{ inputs.report-only }}
         run: |
           echo "job results: $RESULTS (report-only=$REPORT_ONLY)"
-          # Findings: in report-only mode the scan step is continue-on-error, so the job is green and
-          # the findings stay visible in its log. In enforce mode the scan step fails its job.
-          # Anything else that fails (checkout, install, checksum, invalid fail-on) fails its job in
-          # BOTH modes, so a broken scanner can never pass silently. Skipped (no scan-image) is fine.
+          # Report-only: the scan steps are continue-on-error, so ANY non-zero exit of a scanner is
+          # green, findings and tool errors alike (scanner crash, vulnerability DB or image fetch
+          # failure). Read the scan step logs. Enforce: a scan step failure fails its job.
+          # Steps outside the scan (checkout, install, checksum, invalid fail-on) fail their job in
+          # both modes. Skipped (no scan-image) is fine.
           for r in $RESULTS; do
             case "$r" in
               success|skipped) ;;

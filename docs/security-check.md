@@ -3,9 +3,9 @@
 `.github/workflows/security-check.yml` is a reusable workflow that runs on every call:
 
 - gitleaks: secrets in the full git history (pinned binary with checksum, no licence needed)
-- dependency-scan: OSV-Scanner on all lockfiles
+- dependency-scan: OSV-Scanner on all lockfiles (`--allow-no-lockfiles`: a repository with no supported lockfile passes instead of failing with exit 128)
 - image-scan: Trivy, only when `scan-image` is set
-- semgrep: code patterns (`--config=p/default`, since `auto` requires metrics)
+- semgrep: code patterns (`--config=p/default`, since `auto` requires metrics). `p/default` is a registry rule set that changes over time, so a new finding can appear without a code change.
 - `security-check`: the aggregate job. Make this the required status check.
 
 No secrets are used, so it works on fork pull requests. Do not add private values to this repository, it is public.
@@ -16,7 +16,7 @@ No secrets are used, so it works on fork pull requests. Do not add private value
 | --- | --- | --- |
 | `scan-image` | empty | Image ref for Trivy. Must be pullable without credentials. Empty skips the image scan. |
 | `fail-on` | `high` | `critical`, `high`, `medium` or `low`. Applies to Trivy and Semgrep. OSV fails on any finding. An invalid value fails the check in every mode, including report-only. |
-| `report-only` | `true` | Findings are logged but do not block (only the scan step is non-blocking; install, checksum and config errors still fail). Set `false` once the baseline is clean. |
+| `report-only` | `true` | The scan steps do not block. This covers findings AND scanner errors (crash, vulnerability DB or image fetch failure): both show green, so read the scan step logs. Install, checksum and `fail-on` errors still fail. Set `false` once the baseline is clean. |
 
 ## Calling it
 
