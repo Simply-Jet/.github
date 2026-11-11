@@ -4,7 +4,7 @@
 
 - gitleaks: secrets in the full git history (pinned binary with checksum, no licence needed)
 - dependency-scan: OSV-Scanner on all lockfiles (`--allow-no-lockfiles`: a repository with no supported lockfile passes instead of failing with exit 128)
-- image-scan: Trivy, only when `scan-image` is set
+- image-scan: Trivy (vulnerabilities, fixed only, `--ignore-unfixed`), only when `scan-image` is set
 - semgrep: code patterns (`--config=p/default`, since `auto` requires metrics). `p/default` is a registry rule set that changes over time, so a new finding can appear without a code change.
 - `security-check`: the aggregate job. Make this the required status check.
 
@@ -45,11 +45,11 @@ An accepted finding must be ignored in the repository with a written reason, and
 
 - gitleaks: `.gitleaksignore` (fingerprint per line) or `.gitleaks.toml` allowlist, with a comment line above giving the reason.
 - OSV: `osv-scanner.toml` `[[IgnoredVulns]]` with `id`, `ignoreUntil` and `reason`.
-- Trivy: `.trivyignore` with a comment above each CVE giving the reason.
+- Trivy: `.trivyignore` (optional, used when present) with a comment above each CVE giving the reason.
 - Semgrep: `// nosemgrep: <rule-id> reason: <why>` on the line.
 
 An ignore without a reason is rejected in review.
 
 ## Pinned tools
 
-gitleaks, OSV-Scanner (binary and sha256), Trivy (`version: v0.76.2`) and Semgrep (`==1.185.0`) are pinned to exact versions. Semgrep is not hash-verified: `pip --require-hashes` needs a hashed lockfile of about 67 transitive packages, and a reusable workflow cannot read a file from this repository at run time (checkout is the caller's repo). Bump versions deliberately in a PR.
+gitleaks v8.30.1, OSV-Scanner v2.7.1 and Trivy v0.76.2 (release binaries with sha256) and Semgrep (`==1.185.0`) are pinned to exact versions. Semgrep is not hash-verified: `pip --require-hashes` needs a hashed lockfile of about 67 transitive packages, and a reusable workflow cannot read a file from this repository at run time (checkout is the caller's repo). Bump versions deliberately in a PR.

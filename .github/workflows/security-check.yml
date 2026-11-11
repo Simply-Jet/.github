@@ -78,7 +78,6 @@ jobs:
         id: sev
         env:
           FAIL_ON: ${{ inputs.fail-on }}
-          REPORT_ONLY: ${{ inputs.report-only }}
         run: |
           case "${FAIL_ON,,}" in
             critical) s=CRITICAL ;;
@@ -88,20 +87,23 @@ jobs:
             *) echo "invalid fail-on: $FAIL_ON" >&2; exit 1 ;;
           esac
           echo "severity=$s" >> "$GITHUB_OUTPUT"
-          echo "report-only=$REPORT_ONLY" >> "$GITHUB_OUTPUT"
-      # continue-on-error on a `uses:` step is evaluated after the action runs, when `inputs` is the
-      # action's own (empty) inputs, so `inputs.report-only` resolves to '' and errors. Use a step output.
+      # Binary from a pinned release with a checksum, like gitleaks and OSV. trivy-action is not used:
+      # it fails when .trivyignore is missing, and continue-on-error was not honoured on its step.
+      - name: Install Trivy v0.76.2
+        run: |
+          curl -sSfL -o trivy.tgz https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz
+          echo "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf  trivy.tgz" | sha256sum -c -
+          tar -xzf trivy.tgz trivy
+      # Accepted findings go in .trivyignore with a reason; the file is optional.
       - name: Scan image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        continue-on-error: ${{ steps.sev.outputs.report-only == 'true' }}
-        with:
-          version: v0.76.2 # pinned Trivy release, bump deliberately
-          image-ref: ${{ inputs.scan-image }}
-          scanners: vuln # secrets are handled by the gitleaks job
-          severity: ${{ steps.sev.outputs.severity }}
-          exit-code: 1
-          ignore-unfixed: true
-          trivyignores: .trivyignore
+        continue-on-error: ${{ inputs.report-only }}
+        env:
+          IMAGE: ${{ inputs.scan-image }}
+          SEVERITY: ${{ steps.sev.outputs.severity }}
+        run: |
+          ignore=()
+          if [ -f .trivyignore ]; then ignore=(--ignorefile .trivyignore); fi
+          ./trivy image --scanners vuln --severity "$SEVERITY" --ignore-unfixed --exit-code 1 "${ignore[@]}" "$IMAGE"
 
   semgrep:
     name: semgrep
