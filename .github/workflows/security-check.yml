@@ -28,7 +28,6 @@ jobs:
   gitleaks:
     name: gitleaks
     runs-on: ubuntu-latest
-    continue-on-error: ${{ inputs.report-only }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -42,12 +41,12 @@ jobs:
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tgz" | sha256sum -c -
           tar -xzf gitleaks.tgz gitleaks
       - name: Scan for secrets
+        continue-on-error: ${{ inputs.report-only }}
         run: ./gitleaks git --redact --verbose --exit-code 1 .
 
   dependencies:
     name: dependency-scan
     runs-on: ubuntu-latest
-    continue-on-error: ${{ inputs.report-only }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -60,13 +59,13 @@ jobs:
       # Scans lockfiles recursively. Accepted findings go in osv-scanner.toml with a reason.
       # OSV has no severity filter, so any known vulnerability in a lockfile fails this job.
       - name: Scan lockfiles
+        continue-on-error: ${{ inputs.report-only }}
         run: ./osv-scanner scan source --recursive .
 
   trivy:
     name: image-scan
     if: ${{ inputs.scan-image != '' }}
     runs-on: ubuntu-latest
-    continue-on-error: ${{ inputs.report-only }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -84,8 +83,11 @@ jobs:
             *) echo "invalid fail-on: $FAIL_ON" >&2; exit 1 ;;
           esac
           echo "severity=$s" >> "$GITHUB_OUTPUT"
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      - name: Scan image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        continue-on-error: ${{ inputs.report-only }}
         with:
+          version: v0.76.2 # pinned Trivy release, bump deliberately
           image-ref: ${{ inputs.scan-image }}
           scanners: vuln # secrets are handled by the gitleaks job
           severity: ${{ steps.sev.outputs.severity }}
@@ -96,7 +98,6 @@ jobs:
   semgrep:
     name: semgrep
     runs-on: ubuntu-latest
-    continue-on-error: ${{ inputs.report-only }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -113,10 +114,13 @@ jobs:
             *) echo "invalid fail-on: $FAIL_ON" >&2; exit 1 ;;
           esac
           echo "flags=$s" >> "$GITHUB_OUTPUT"
+      # Exact version pin only. --require-hashes needs a hashed lockfile of ~67 transitive packages, and a
+      # reusable workflow cannot read a file from this repo at run time (checkout is the caller's repo).
       - name: Install semgrep 1.185.0
         run: pipx install semgrep==1.185.0
       # Ignore a finding in code with: // nosemgrep: <rule-id> reason: <why>
       - name: Scan code
+        continue-on-error: ${{ inputs.report-only }}
         env:
           SEV_FLAGS: ${{ steps.sev.outputs.flags }}
         run: |
@@ -135,11 +139,13 @@ jobs:
           REPORT_ONLY: ${{ inputs.report-only }}
         run: |
           echo "job results: $RESULTS (report-only=$REPORT_ONLY)"
-          # In report-only mode scan jobs are continue-on-error, so failures are visible in
-          # their own logs but do not turn this required check red.
+          # Findings: in report-only mode the scan step is continue-on-error, so the job is green and
+          # the findings stay visible in its log. In enforce mode the scan step fails its job.
+          # Anything else that fails (checkout, install, checksum, invalid fail-on) fails its job in
+          # BOTH modes, so a broken scanner can never pass silently. Skipped (no scan-image) is fine.
           for r in $RESULTS; do
-            if [ "$r" = failure ] || [ "$r" = cancelled ]; then
-              echo "::error::security check failed"
-              exit 1
-            fi
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::security check failed (job result: $r)"; exit 1 ;;
+            esac
           done

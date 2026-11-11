@@ -15,12 +15,12 @@ No secrets are used, so it works on fork pull requests. Do not add private value
 | Input | Default | Meaning |
 | --- | --- | --- |
 | `scan-image` | empty | Image ref for Trivy. Must be pullable without credentials. Empty skips the image scan. |
-| `fail-on` | `high` | `critical`, `high`, `medium` or `low`. Applies to Trivy and Semgrep. OSV fails on any finding. |
-| `report-only` | `true` | Findings are logged but do not block. Set `false` once the baseline is clean. |
+| `fail-on` | `high` | `critical`, `high`, `medium` or `low`. Applies to Trivy and Semgrep. OSV fails on any finding. An invalid value fails the check in every mode, including report-only. |
+| `report-only` | `true` | Findings are logged but do not block (only the scan step is non-blocking; install, checksum and config errors still fail). Set `false` once the baseline is clean. |
 
 ## Calling it
 
-Pin to a commit SHA of this repository, never a branch or tag.
+Pin to a commit SHA of this repository, never a branch or tag. Replace `<40-char-sha>` with the commit of this repository you want, i.e. the merge commit of this PR once merged (`git ls-remote https://github.com/Simply-Jet/.github main`). A SHA cannot be embedded here, because a commit cannot contain its own hash; the placeholder is intentional. To test before merge, use the PR head SHA (`gh pr view 1 -R Simply-Jet/.github --json headRefOid -q .headRefOid`).
 
 ```yaml
 name: security
@@ -32,7 +32,7 @@ permissions:
   contents: read
 jobs:
   security-check:
-    uses: Simply-Jet/.github/.github/workflows/security-check.yml@<40-char-sha> # <short note, e.g. main 2026-11-10>
+    uses: Simply-Jet/.github/.github/workflows/security-check.yml@<40-char-sha> # <short note>
     with:
       report-only: true
 ```
@@ -49,3 +49,7 @@ An accepted finding must be ignored in the repository with a written reason, and
 - Semgrep: `// nosemgrep: <rule-id> reason: <why>` on the line.
 
 An ignore without a reason is rejected in review.
+
+## Pinned tools
+
+gitleaks, OSV-Scanner (binary and sha256), Trivy (`version: v0.76.2`) and Semgrep (`==1.185.0`) are pinned to exact versions. Semgrep is not hash-verified: `pip --require-hashes` needs a hashed lockfile of about 67 transitive packages, and a reusable workflow cannot read a file from this repository at run time (checkout is the caller's repo). Bump versions deliberately in a PR.
