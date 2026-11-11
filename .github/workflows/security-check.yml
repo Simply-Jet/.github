@@ -78,6 +78,7 @@ jobs:
         id: sev
         env:
           FAIL_ON: ${{ inputs.fail-on }}
+          REPORT_ONLY: ${{ inputs.report-only }}
         run: |
           case "${FAIL_ON,,}" in
             critical) s=CRITICAL ;;
@@ -87,9 +88,12 @@ jobs:
             *) echo "invalid fail-on: $FAIL_ON" >&2; exit 1 ;;
           esac
           echo "severity=$s" >> "$GITHUB_OUTPUT"
+          echo "report-only=$REPORT_ONLY" >> "$GITHUB_OUTPUT"
+      # continue-on-error on a `uses:` step is evaluated after the action runs, when `inputs` is the
+      # action's own (empty) inputs, so `inputs.report-only` resolves to '' and errors. Use a step output.
       - name: Scan image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        continue-on-error: ${{ inputs.report-only }}
+        continue-on-error: ${{ steps.sev.outputs.report-only == 'true' }}
         with:
           version: v0.76.2 # pinned Trivy release, bump deliberately
           image-ref: ${{ inputs.scan-image }}
