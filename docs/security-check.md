@@ -53,3 +53,14 @@ An ignore without a reason is rejected in review.
 ## Pinned tools
 
 gitleaks v8.30.1, OSV-Scanner v2.7.1 and Trivy v0.76.2 (release binaries with sha256) and Semgrep (`==1.185.0`) are pinned to exact versions. Semgrep is not hash-verified: `pip --require-hashes` needs a hashed lockfile of about 67 transitive packages, and a reusable workflow cannot read a file from this repository at run time (checkout is the caller's repo). Bump versions deliberately in a PR.
+
+## Evidence
+
+Each scanner was tested by calling this workflow from a throwaway branch of this repository in both modes, `report-only: true` and `false`. The scratch branches were deleted on purpose after each run, so there is no permanent PR-triggered workflow here. The run logs stay available at the links below.
+
+| Run | Workflow commit | Result |
+| --- | --- | --- |
+| [42966514495](https://github.com/Simply-Jet/.github/actions/runs/42966514495), [42966736224](https://github.com/Simply-Jet/.github/actions/runs/42966736224) | earlier head | gitleaks, dependency-scan and semgrep in both modes, no `scan-image` |
+| [43011149807](https://github.com/Simply-Jet/.github/actions/runs/43011149807) | `eb3e1b95` | image-scan failed in both modes: template error on `continue-on-error` of the trivy-action step |
+| [43011451242](https://github.com/Simply-Jet/.github/actions/runs/43011451242) | `e61e6078` | image-scan failed in both modes: trivy-action stops when `.trivyignore` is missing, and report-only was not honoured |
+| [43012131901](https://github.com/Simply-Jet/.github/actions/runs/43012131901) | `c2634efa` | `scan-image: alpine:3.18.0`, no `.trivyignore`. Trivy found `Total: 9 (HIGH: 6, CRITICAL: 3)` in both modes. Report-only: every job and `security-check` green. Enforce: image-scan and `security-check` red, the others green. |
