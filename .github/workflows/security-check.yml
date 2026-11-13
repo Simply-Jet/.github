@@ -1,0 +1,164 @@
+name: security-check
+
+# Shared security check. Call it from a repository workflow, see docs/security-check.md.
+# No secrets are used or required, so it also runs on pull requests from forks.
+on:
+  workflow_call:
+    inputs:
+      scan-image:
+        description: Image reference to scan with Trivy (must be pullable without credentials). Empty skips the image scan.
+        type: string
+        required: false
+        default: ''
+      fail-on:
+        description: Minimum severity that fails the check (critical, high, medium, low)
+        type: string
+        required: false
+        default: high
+      report-only:
+        description: When true, findings are reported but never block (first rollout)
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # Binary from a pinned release with a checksum (gitleaks-action needs a paid licence for orgs).
+      # Repo-level config: .gitleaks.toml and .gitleaksignore are picked up automatically.
+      - name: Install gitleaks v8.30.1
+        run: |
+          curl -sSfL -o gitleaks.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tgz" | sha256sum -c -
+          tar -xzf gitleaks.tgz gitleaks
+      - name: Scan for secrets
+        continue-on-error: ${{ inputs.report-only }}
+        run: ./gitleaks git --redact --verbose --exit-code 1 .
+
+  dependencies:
+    name: dependency-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install osv-scanner v2.7.1
+        run: |
+          curl -sSfL -o osv-scanner https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64
+          echo "fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8  osv-scanner" | sha256sum -c -
+          chmod +x osv-scanner
+      # Scans lockfiles recursively. Accepted findings go in osv-scanner.toml with a reason.
+      # OSV has no severity filter, so any known vulnerability in a lockfile fails this job.
+      # --allow-no-lockfiles: a repo without a supported lockfile passes (osv-scanner exits 128 otherwise).
+      - name: Scan lockfiles
+        continue-on-error: ${{ inputs.report-only }}
+        run: ./osv-scanner scan source --recursive --allow-no-lockfiles .
+
+  trivy:
+    name: image-scan
+    if: ${{ inputs.scan-image != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Map fail-on to Trivy severities
+        id: sev
+        env:
+          FAIL_ON: ${{ inputs.fail-on }}
+        run: |
+          case "${FAIL_ON,,}" in
+            critical) s=CRITICAL ;;
+            high) s=HIGH,CRITICAL ;;
+            medium) s=MEDIUM,HIGH,CRITICAL ;;
+            low) s=LOW,MEDIUM,HIGH,CRITICAL ;;
+            *) echo "invalid fail-on: $FAIL_ON" >&2; exit 1 ;;
+          esac
+          echo "severity=$s" >> "$GITHUB_OUTPUT"
+      # Binary from a pinned release with a checksum, like gitleaks and OSV. trivy-action is not used:
+      # it fails when .trivyignore is missing, and continue-on-error was not honoured on its step.
+      - name: Install Trivy v0.76.2
+        run: |
+          curl -sSfL -o trivy.tgz https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz
+          echo "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf  trivy.tgz" | sha256sum -c -
+          tar -xzf trivy.tgz trivy
+      # Accepted findings go in .trivyignore with a reason; the file is optional.
+      - name: Scan image
+        continue-on-error: ${{ inputs.report-only }}
+        env:
+          IMAGE: ${{ inputs.scan-image }}
+          SEVERITY: ${{ steps.sev.outputs.severity }}
+        run: |
+          ignore=()
+          if [ -f .trivyignore ]; then ignore=(--ignorefile .trivyignore); fi
+          ./trivy image --scanners vuln --severity "$SEVERITY" --ignore-unfixed --exit-code 1 "${ignore[@]}" "$IMAGE"
+
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Map fail-on to Semgrep severities
+        id: sev
+        env:
+          FAIL_ON: ${{ inputs.fail-on }}
+        run: |
+          case "${FAIL_ON,,}" in
+            critical|high) s="--severity=ERROR" ;;
+            medium) s="--severity=ERROR --severity=WARNING" ;;
+            low) s="" ;;
+            *) echo "invalid fail-on: $FAIL_ON" >&2; exit 1 ;;
+          esac
+          echo "flags=$s" >> "$GITHUB_OUTPUT"
+      # Exact version pin only. --require-hashes needs a hashed lockfile of ~67 transitive packages, and a
+      # reusable workflow cannot read a file from this repo at run time (checkout is the caller's repo).
+      - name: Install semgrep 1.185.0
+        run: pipx install semgrep==1.185.0
+      # Ignore a finding in code with: // nosemgrep: <rule-id> reason: <why>
+      - name: Scan code
+        continue-on-error: ${{ inputs.report-only }}
+        env:
+          SEV_FLAGS: ${{ steps.sev.outputs.flags }}
+        run: |
+          # shellcheck disable=SC2086
+          semgrep scan --config=p/default --error --metrics=off $SEV_FLAGS
+
+  security-check:
+    name: security-check
+    if: ${{ always() }}
+    needs: [gitleaks, dependencies, trivy, semgrep]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Aggregate results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+          REPORT_ONLY: ${{ inputs.report-only }}
+        run: |
+          echo "job results: $RESULTS (report-only=$REPORT_ONLY)"
+          # Report-only: the scan steps are continue-on-error, so ANY non-zero exit of a scanner is
+          # green, findings and tool errors alike (scanner crash, vulnerability DB or image fetch
+          # failure). Read the scan step logs. Enforce: a scan step failure fails its job.
+          # Steps outside the scan (checkout, install, checksum, invalid fail-on) fail their job in
+          # both modes. Skipped (no scan-image) is fine.
+          for r in $RESULTS; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::security check failed (job result: $r)"; exit 1 ;;
+            esac
+          done
